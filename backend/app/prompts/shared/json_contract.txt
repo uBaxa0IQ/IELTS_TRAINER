@@ -1,0 +1,18 @@
+{
+  "overall_band": 0.0,
+  "task_response_band": 0.0,
+  "coherence_band": 0.0,
+  "lexical_band": 0.0,
+  "grammar_band": 0.0,
+  "short_feedback": "string",
+  "detailed_feedback": {
+    "task_response": "string",
+    "coherence_and_cohesion": "string",
+    "lexical_resource": "string",
+    "grammatical_range_and_accuracy": "string"
+  },
+  "improvement_tips": ["string"],
+  "spelling_errors": [
+    { "word": "misspelled word as it appears in essay", "correction": "correct spelling" }
+  ]
+}
