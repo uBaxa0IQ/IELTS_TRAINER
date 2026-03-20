@@ -768,32 +768,33 @@ export function GoogleCallbackPage() {
   const { setSession } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const token = searchParams.get('token')
+  const accessToken = searchParams.get('token')
+  const refreshToken = searchParams.get('refresh_token') ?? ''
   const newUser = searchParams.get('new_user')
 
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!token) {
+    if (!accessToken) {
       setError('Missing OAuth token.')
       return
     }
 
     setError(null)
     const eventType = newUser === '1' ? 'signup_google' : 'login_google'
-    me(token)
+    me(accessToken)
       .then((user) => {
         setSession({
-          access_token: token,
-          refresh_token: '',
+          access_token: accessToken,
+          refresh_token: refreshToken,
           token_type: 'bearer',
           user,
         })
-        void postAnalyticsEvent(token, { event_type: eventType, meta: {} }).catch(() => {})
+        void postAnalyticsEvent(accessToken, { event_type: eventType, meta: {} }).catch(() => {})
         navigate('/', { replace: true })
       })
       .catch(() => setError('Google sign-in failed.'))
-  }, [navigate, setSession, token, newUser])
+  }, [navigate, setSession, accessToken, refreshToken, newUser])
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6">

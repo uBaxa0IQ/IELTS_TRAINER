@@ -16,7 +16,25 @@ Starts Google OAuth sign-in by redirecting the browser to Google.
 
 ### `GET /api/v1/auth/google/callback`
 
-Google redirects back here with an authorization `code`. The backend exchanges the code, validates the `id_token`, upserts the user, issues JWTs, and redirects the browser back to the frontend with `?token=<access_token>`.
+Google redirects back here with an authorization `code`. The backend exchanges the code, validates the `id_token`, upserts the user, issues JWTs, and redirects the browser back to the frontend with:
+
+- `token=<access_token>`
+- `refresh_token=<refresh_token>`
+- `new_user=0|1`
+
+### `POST /api/v1/auth/refresh`
+
+Exchanges a valid refresh JWT for a new access JWT. Does not rotate the refresh token (same refresh token is returned until it expires).
+
+Request:
+
+```json
+{
+  "refresh_token": "<jwt>"
+}
+```
+
+Response: `TokenResponse` (same shape as after login — `access_token`, `refresh_token`, `token_type`, `user`).
 
 ### `GET /api/v1/auth/me`
 

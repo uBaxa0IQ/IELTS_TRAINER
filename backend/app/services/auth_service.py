@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.security import create_token, hash_password, verify_password
+from app.core.security import create_token, decode_token, hash_password, verify_password
 from app.models.user import User
 from app.schemas.auth import TokenResponse, UserCreate, UserPreferencesPatch, UserRead
 
@@ -17,6 +17,41 @@ def build_token_response(user: User) -> TokenResponse:
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
+        user=UserRead.model_validate(user),
+    )
+
+
+def refresh_access_token(refresh_token: str, db: Session) -> TokenResponse:
+    try:
+        payload = decode_token(refresh_token)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        ) from exc
+    if payload.get("type") != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token type",
+        )
+    sub = payload.get("sub")
+    if not isinstance(sub, str) or not sub:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+    user = db.get(User, sub)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    ensure_user_nickname(user)
+    access_token = create_token(user.id, settings.access_token_minutes, "access")
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
         user=UserRead.model_validate(user),
     )
 

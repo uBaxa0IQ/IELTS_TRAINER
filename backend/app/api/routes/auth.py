@@ -7,11 +7,12 @@ from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.core.config import settings
 from app.models.user import User
-from app.schemas.auth import TokenResponse, UserCreate, UserPreferencesPatch, UserRead
+from app.schemas.auth import RefreshRequest, TokenResponse, UserCreate, UserPreferencesPatch, UserRead
 from app.services.auth_service import (
     build_token_response,
     ensure_user_nickname,
     get_or_create_google_user,
+    refresh_access_token,
     update_user_preferences,
 )
 
@@ -31,6 +32,11 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> TokenRespons
 @router.post("/login", response_model=TokenResponse)
 def login(payload: UserCreate, db: Session = Depends(get_db)) -> TokenResponse:
     raise HTTPException(status_code=404, detail="Email/password login is disabled. Use Google OAuth.")
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> TokenResponse:
+    return refresh_access_token(payload.refresh_token, db)
 
 
 @router.get("/me", response_model=UserRead)
@@ -124,7 +130,11 @@ async def google_callback(
     user, new_user = get_or_create_google_user(decoded, db)
     token_response = build_token_response(user)
 
-    redirect_params = {"token": token_response.access_token, "new_user": "1" if new_user else "0"}
+    redirect_params = {
+        "token": token_response.access_token,
+        "refresh_token": token_response.refresh_token,
+        "new_user": "1" if new_user else "0",
+    }
     frontend_url = settings.frontend_url.rstrip("/")
     callback_url = f"{frontend_url}/auth/google/callback?{urlencode(redirect_params)}"
     return RedirectResponse(url=callback_url, status_code=302)

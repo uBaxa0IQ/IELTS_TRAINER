@@ -73,6 +73,8 @@ def get_or_generate_prompt(db: Session) -> EssayPrompt:
     try:
         return create_generated_prompt(db)
     except Exception:
+        # Failed flush/commit leaves the session in "needs rollback" state; clear it before fallback.
+        db.rollback()
         return create_fallback_prompt(db)
 
 

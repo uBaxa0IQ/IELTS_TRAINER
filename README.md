@@ -36,6 +36,17 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
+```
+
+Apply database migrations (PostgreSQL must be running and `DATABASE_URL` set in `.env`):
+
+```bash
+alembic upgrade head
+```
+
+Then start the API:
+
+```bash
 uvicorn app.main:app --reload
 ```
 
@@ -64,6 +75,12 @@ To switch to a real provider, configure:
 
 ```bash
 docker compose up --build
+```
+
+On `docker compose up`, the backend runs `alembic upgrade head` before starting Uvicorn, so tables are created automatically. To run migrations manually (e.g. after pulling new revisions):
+
+```bash
+docker compose exec backend alembic upgrade head
 ```
 
 For day-to-day development, run once with build and then use plain:

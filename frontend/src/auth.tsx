@@ -8,7 +8,7 @@ import {
   type PropsWithChildren,
 } from 'react'
 
-import { me } from './api'
+import { me, refreshSession, SESSION_KEY, SESSION_REFRESHED_EVENT } from './api'
 import type { AuthResponse, User } from './types'
 
 type AuthContextValue = {
@@ -21,14 +21,28 @@ type AuthContextValue = {
   setUser: (user: User | null) => void
 }
 
-const SESSION_KEY = 'ielts-trainer-session'
-
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+
+type StoredSession = {
+  access_token?: string
+  refresh_token?: string
+  /** legacy */
+  token?: string
+}
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    const onSessionRefreshed = (e: Event) => {
+      const d = (e as CustomEvent<{ access_token?: string }>).detail
+      if (d?.access_token) setToken(d.access_token)
+    }
+    window.addEventListener(SESSION_REFRESHED_EVENT, onSessionRefreshed)
+    return () => window.removeEventListener(SESSION_REFRESHED_EVENT, onSessionRefreshed)
+  }, [])
 
   useEffect(() => {
     const raw = localStorage.getItem(SESSION_KEY)
@@ -37,14 +51,44 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return
     }
 
-    const session = JSON.parse(raw) as { token: string }
-    me(session.token)
+    let session: StoredSession
+    try {
+      session = JSON.parse(raw) as StoredSession
+    } catch {
+      setReady(true)
+      return
+    }
+
+    const access = session.access_token ?? session.token
+    const refreshTok = session.refresh_token ?? ''
+
+    if (!access) {
+      setReady(true)
+      return
+    }
+
+    const persist = (access_token: string, refresh_token: string) => {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ access_token, refresh_token }))
+    }
+
+    void me(access)
       .then((nextUser) => {
-        setToken(session.token)
+        setToken(access)
         setUser(nextUser)
+        persist(access, refreshTok)
       })
-      .catch(() => {
-        localStorage.removeItem(SESSION_KEY)
+      .catch(async () => {
+        if (!refreshTok) {
+          localStorage.removeItem(SESSION_KEY)
+          return
+        }
+        try {
+          const auth = await refreshSession(refreshTok)
+          setToken(auth.access_token)
+          setUser(auth.user)
+        } catch {
+          localStorage.removeItem(SESSION_KEY)
+        }
       })
       .finally(() => setReady(true))
   }, [])
@@ -52,14 +96,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const setSession = useCallback((response: AuthResponse) => {
     setUser(response.user)
     setToken(response.access_token)
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ token: response.access_token }))
+    localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        access_token: response.access_token,
+        refresh_token: response.refresh_token,
+      }),
+    )
   }, [])
 
   const refreshUser = useCallback(async () => {
     const raw = localStorage.getItem(SESSION_KEY)
     if (!raw) return
-    const session = JSON.parse(raw) as { token: string }
-    const nextUser = await me(session.token)
+    let session: StoredSession
+    try {
+      session = JSON.parse(raw) as StoredSession
+    } catch {
+      return
+    }
+    const access = session.access_token ?? session.token
+    if (!access) return
+    const nextUser = await me(access)
     setUser(nextUser)
   }, [])
 

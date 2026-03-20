@@ -32,7 +32,10 @@ class EssaySubmission(Base):
     overall_band: Mapped[float | None] = mapped_column(Float(), nullable=True)
     short_feedback: Mapped[str | None] = mapped_column(Text(), nullable=True)
     analysis_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    status: Mapped[SubmissionStatus] = mapped_column(SqlEnum(SubmissionStatus), default=SubmissionStatus.PENDING)
+    status: Mapped[SubmissionStatus] = mapped_column(
+        SqlEnum(SubmissionStatus, values_callable=lambda x: [e.value for e in x]),
+        default=SubmissionStatus.PENDING,
+    )
     failure_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

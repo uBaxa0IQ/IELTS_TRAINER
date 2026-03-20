@@ -19,7 +19,11 @@ class EssayPrompt(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     topic_text: Mapped[str] = mapped_column(Text())
-    source: Mapped[PromptSource] = mapped_column(SqlEnum(PromptSource), index=True)
+    # Persist enum .value ("preset") so it matches PostgreSQL native enum labels from Alembic.
+    source: Mapped[PromptSource] = mapped_column(
+        SqlEnum(PromptSource, values_callable=lambda x: [e.value for e in x]),
+        index=True,
+    )
     tags: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_by_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
