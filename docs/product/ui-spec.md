@@ -21,14 +21,13 @@ and a focus on a single primary task.
 ### Landing
 
 - concise value proposition;
-- entry points to `Sign in` and `Sign up`;
+- entry point to `Sign in`;
 - short explanation of how the app works.
 
 ### Auth
 
 - single-column auth form;
-- email and password inputs;
-- toggle link between sign in and sign up;
+- Google sign-in button;
 - inline validation errors.
 
 ### Practice Screen
@@ -67,7 +66,7 @@ Notes:
 ### Profile Settings
 
 - dedicated route for user preferences;
-- currently contains `Feedback language` selector;
+- currently contains editable `nickname` and `Feedback language` selector;
 - designed to be extended with additional settings later.
 
 ## Writing Screen Layout
@@ -75,7 +74,7 @@ Notes:
 ### Top Bar
 
 - product mark or logo on the left;
-- account access on the right (email when signed in);
+- account access on the right (nickname when signed in);
 - no logout control in top bar.
 
 ### Topic Panel

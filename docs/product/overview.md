@@ -90,7 +90,7 @@ The following are intentionally not part of this release:
 
 The release is successful if a new user can:
 
-1. register and log in;
+1. sign in with Google;
 2. start a writing session in under 30 seconds;
 3. submit an essay and receive structured feedback;
 4. revisit past results without losing work;
@@ -98,7 +98,7 @@ The release is successful if a new user can:
 
 ## Functional Requirements Summary
 
-- the system must support email/password authentication;
+- the system must support Google OAuth authentication;
 - the system must let the user generate or manually enter a topic;
 - the system must count words in real time;
 - the system must support an optional countdown timer with user-defined duration;

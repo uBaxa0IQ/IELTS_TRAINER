@@ -20,10 +20,24 @@ Fields:
 
 - `id` UUID primary key
 - `email` unique, indexed
-- `password_hash`
+- `password_hash` (nullable for Google accounts)
+- `nickname` (display name, editable)
+- `google_sub` (stable Google account identifier, nullable)
 - `analysis_language` string (BCP-47-style code, default `en`) — language for LLM-written feedback text
 - `created_at`
 - `updated_at`
+
+### analytics_events
+
+Purpose: minimal, privacy-preserving tracking for product usage analytics.
+
+Fields:
+
+- `id` UUID primary key
+- `user_id` foreign key to `users.id`
+- `event_type` string (e.g. `signup_google`, `login_google`, `topic_generated`, `essay_evaluated`)
+- `meta` JSON (lightweight metadata; no essay text)
+- `created_at`
 
 ### essay_prompts
 

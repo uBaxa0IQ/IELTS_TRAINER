@@ -37,7 +37,7 @@ export function TopBar() {
               to="/profile"
               className="text-text-secondary hover:text-text-primary text-sm no-underline transition-colors duration-200"
             >
-              {user.email}
+              {user.nickname ?? user.email}
             </Link>
           </>
         ) : (

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import { ANALYSIS_LANGUAGE_OPTIONS } from './analysisLanguage'
@@ -12,9 +12,9 @@ import {
   getHistory,
   getProgress,
   getSubmission,
-  login,
+  me,
+  postAnalyticsEvent,
   patchMe,
-  register,
 } from './api'
 import { useAuth } from './auth'
 import { EssayWithErrors, LoadingDots, ScoreDisplay, Shell } from './components'
@@ -160,6 +160,12 @@ export function PracticePage() {
     setError(null)
     try {
       const p = token ? await generatePrompt(token) : await generatePromptAnon()
+      if (token) {
+        void postAnalyticsEvent(token, {
+          event_type: 'topic_generated',
+          meta: { prompt_id: p.id, source: p.source },
+        }).catch(() => {})
+      }
       setPrompt(p)
       setEssayText('')
       setResult(null)
@@ -228,6 +234,20 @@ export function PracticePage() {
           analysis_language: analysisLanguage,
         })
       }
+
+      if (token) {
+        void postAnalyticsEvent(token, {
+          event_type: 'essay_evaluated',
+          meta: {
+            prompt_id: submittedPrompt.id,
+            word_count: res.word_count,
+            timer_enabled: timerEnabled,
+            timer_expired: timerExpired,
+            analysis_language: analysisLanguage,
+          },
+        }).catch(() => {})
+      }
+
       setEvaluatedPrompt(submittedPrompt)
       setEvaluatedEssayText(submittedEssayText)
       setResult(res)
@@ -235,6 +255,12 @@ export function PracticePage() {
       setEssayText('')
       try {
         const nextPrompt = token ? await generatePrompt(token) : await generatePromptAnon()
+        if (token) {
+          void postAnalyticsEvent(token, {
+            event_type: 'topic_generated',
+            meta: { prompt_id: nextPrompt.id, source: nextPrompt.source },
+          }).catch(() => {})
+        }
         setPrompt(nextPrompt)
       } catch {
         setError('Essay evaluated, but unable to load a new topic.')
@@ -287,7 +313,7 @@ export function PracticePage() {
           {!user && (
             <p className="text-text-secondary text-xs text-center mt-4">
               results not saved.{' '}
-              <a href="/register" className="text-accent no-underline hover:underline">sign up</a>
+              <a href="/login" className="text-accent no-underline hover:underline">sign in</a>
               {' '}to keep history.
             </p>
           )}
@@ -473,7 +499,7 @@ export function ProfilePage() {
           <p className="text-text-secondary text-xs tracking-widest uppercase mb-2">profile</p>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-text-primary text-sm m-0">{user?.email}</p>
+              <p className="text-text-primary text-sm m-0">{user?.nickname ?? user?.email}</p>
               <p className="text-text-secondary text-xs mt-1 mb-0">Manage your preferences and review progress.</p>
             </div>
             <div className="flex items-center gap-4">
@@ -613,6 +639,12 @@ export function ProfilePage() {
 export function ProfileSettingsPage() {
   const { token, user, setUser } = useAuth()
   const [langError, setLangError] = useState<string | null>(null)
+  const [nickDraft, setNickDraft] = useState(user?.nickname ?? '')
+  const [nickError, setNickError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setNickDraft(user?.nickname ?? '')
+  }, [user?.nickname])
 
   async function handleAnalysisLanguageChange(code: string) {
     if (!token) return
@@ -622,6 +654,22 @@ export function ProfileSettingsPage() {
       setUser(updatedUser)
     } catch (e) {
       setLangError(e instanceof Error ? e.message : 'Could not save language.')
+    }
+  }
+
+  async function handleNicknameSave() {
+    if (!token) return
+    setNickError(null)
+    try {
+      const next = nickDraft.trim()
+      if (!next) {
+        setNickError('Nickname is required.')
+        return
+      }
+      const updatedUser = await patchMe(token, { nickname: next })
+      setUser(updatedUser)
+    } catch (e) {
+      setNickError(e instanceof Error ? e.message : 'Could not save nickname.')
     }
   }
 
@@ -655,6 +703,27 @@ export function ProfileSettingsPage() {
           </select>
           {langError ? <p className="text-error text-xs mt-2">{langError}</p> : null}
         </section>
+
+        <section className="mb-10">
+          <h3 className="text-text-secondary text-xs tracking-widest uppercase mb-2">nickname</h3>
+          <p className="text-text-secondary text-xs mb-3 max-w-md">
+            This name is shown in the top bar and on your profile.
+          </p>
+          <input
+            type="text"
+            value={nickDraft}
+            onChange={(e) => setNickDraft(e.target.value)}
+            onBlur={() => void handleNicknameSave()}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return
+              e.preventDefault()
+              void handleNicknameSave()
+            }}
+            placeholder="nickname"
+            className="bg-bg-secondary text-text-primary text-sm py-2 px-3 rounded border border-text-secondary/30 font-sans cursor-text max-w-xs w-full"
+          />
+          {nickError ? <p className="text-error text-xs mt-2">{nickError}</p> : null}
+        </section>
       </div>
     </Shell>
   )
@@ -662,34 +731,14 @@ export function ProfileSettingsPage() {
 
 /* ───── Auth Page ───── */
 
-export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
-  const { setSession, user } = useAuth()
+export function AuthPage() {
+  const { user } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1'
 
   useEffect(() => {
     if (user) navigate('/', { replace: true })
   }, [navigate, user])
-
-  const title = mode === 'login' ? 'sign in' : 'create account'
-
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    try {
-      const res = mode === 'login' ? await login(email, password) : await register(email, password)
-      setSession(res)
-      navigate('/', { replace: true })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6">
@@ -698,49 +747,64 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
         <span className="text-accent text-sm tracking-wider font-medium">writing</span>
       </div>
 
-      <form onSubmit={handleSubmit} className="w-full max-w-[340px] space-y-6">
-        <h1 className="text-text-primary text-lg font-light text-center m-0">{title}</h1>
-
-        <div className="space-y-4">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="email"
-            required
-            className="w-full bg-transparent border-b border-text-secondary text-text-primary text-sm py-3 px-1 font-sans placeholder:text-text-secondary/50"
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="password"
-            minLength={8}
-            required
-            className="w-full bg-transparent border-b border-text-secondary text-text-primary text-sm py-3 px-1 font-sans placeholder:text-text-secondary/50"
-          />
-        </div>
-
-        {error && <div className="text-error text-sm text-center">{error}</div>}
+      <div className="w-full max-w-[340px] space-y-6">
+        <h1 className="text-text-primary text-lg font-light text-center m-0">sign in</h1>
 
         <button
-          type="submit"
-          disabled={submitting}
-          className="w-full bg-accent text-bg py-3 text-sm font-medium rounded-sm border-none cursor-pointer transition-opacity duration-200 hover:opacity-90 disabled:opacity-50 font-sans"
+          type="button"
+          onClick={() => {
+            window.location.href = `${API_BASE}/auth/google/login`
+          }}
+          className="w-full bg-bg-secondary text-text-primary py-3 text-sm font-medium rounded-sm border-none cursor-pointer transition-opacity duration-200 hover:opacity-90 font-sans"
         >
-          {submitting ? 'please wait...' : title}
+          Continue with Google
         </button>
+      </div>
+    </div>
+  )
+}
 
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={() => navigate(mode === 'login' ? '/register' : '/login')}
-            className="text-text-secondary hover:text-accent text-xs bg-transparent border-none cursor-pointer transition-colors duration-200 p-0 font-sans"
-          >
-            {mode === 'login' ? 'need an account?' : 'already have an account?'}
-          </button>
+export function GoogleCallbackPage() {
+  const { setSession } = useAuth()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const token = searchParams.get('token')
+  const newUser = searchParams.get('new_user')
+
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!token) {
+      setError('Missing OAuth token.')
+      return
+    }
+
+    setError(null)
+    const eventType = newUser === '1' ? 'signup_google' : 'login_google'
+    me(token)
+      .then((user) => {
+        setSession({
+          access_token: token,
+          refresh_token: '',
+          token_type: 'bearer',
+          user,
+        })
+        void postAnalyticsEvent(token, { event_type: eventType, meta: {} }).catch(() => {})
+        navigate('/', { replace: true })
+      })
+      .catch(() => setError('Google sign-in failed.'))
+  }, [navigate, setSession, token, newUser])
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-6">
+      {error ? (
+        <div className="text-error text-sm text-center">{error}</div>
+      ) : (
+        <div className="text-text-secondary flex items-center gap-2">
+          <span>Signing you in</span>
+          <LoadingDots />
         </div>
-      </form>
+      )}
     </div>
   )
 }

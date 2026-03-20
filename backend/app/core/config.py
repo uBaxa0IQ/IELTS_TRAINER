@@ -30,6 +30,12 @@ class Settings(BaseSettings):
 
     frontend_url: str = Field(default="http://localhost:5173", alias="FRONTEND_URL")
 
+    # Google OAuth (optional until configured).
+    google_client_id: str | None = Field(default=None, alias="GOOGLE_CLIENT_ID")
+    google_client_secret: str | None = Field(default=None, alias="GOOGLE_CLIENT_SECRET")
+    # If not provided, redirect_uri is derived from the incoming request URL.
+    google_redirect_uri: str | None = Field(default=None, alias="GOOGLE_REDIRECT_URI")
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -17,17 +17,18 @@
 ## Flow: Sign Up
 
 1. Guest opens the auth page.
-2. Guest enters email and password.
-3. System validates credentials format and uniqueness.
-4. System creates the user account and returns tokens.
-5. User is redirected to the practice screen.
+2. Guest clicks `Continue with Google`.
+3. System redirects the user to Google OAuth for consent.
+4. System verifies the Google token, creates (or upserts) the user account, and returns tokens.
+5. A default nickname is generated; user can edit it later in `Settings`.
+6. User is redirected to the practice screen.
 
 ## Flow: Sign In
 
 1. Existing user opens the auth page.
-2. User enters email and password.
-3. System validates credentials.
-4. System returns access and refresh tokens.
+2. User clicks `Continue with Google`.
+3. System redirects the user to Google OAuth.
+4. System verifies the Google token, finds the user by `google_sub`, and returns access and refresh tokens.
 5. User is redirected to the last relevant screen.
 
 ## Flow: Generate Topic
@@ -84,7 +85,7 @@
 1. Authenticated user opens profile.
 2. Profile shows dashboards first, then history list.
 3. User can open `Settings` from profile.
-4. In settings, user changes `feedback language`.
+4. In settings, user can edit `nickname` and changes `feedback language`.
 5. Frontend sends `PATCH /auth/me` and updates local auth user state.
 6. User returns to profile and continues practice with updated preference.
 7. Logout is triggered from profile (not from practice top bar).

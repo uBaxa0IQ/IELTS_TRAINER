@@ -4,36 +4,23 @@
 
 ### `POST /api/v1/auth/register`
 
-Request:
-
-```json
-{
-  "email": "user@example.com",
-  "password": "strong-password"
-}
-```
-
-Response:
-
-```json
-{
-  "access_token": "jwt",
-  "refresh_token": "jwt",
-  "token_type": "bearer",
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com"
-  }
-}
-```
+Disabled: email/password registration is not supported. Use Google OAuth.
 
 ### `POST /api/v1/auth/login`
 
-Same contract as register, but validates existing credentials.
+Disabled: email/password login is not supported. Use Google OAuth.
+
+### `GET /api/v1/auth/google/login`
+
+Starts Google OAuth sign-in by redirecting the browser to Google.
+
+### `GET /api/v1/auth/google/callback`
+
+Google redirects back here with an authorization `code`. The backend exchanges the code, validates the `id_token`, upserts the user, issues JWTs, and redirects the browser back to the frontend with `?token=<access_token>`.
 
 ### `GET /api/v1/auth/me`
 
-Returns authenticated user profile (includes `analysis_language`, default `en`).
+Returns authenticated user profile (includes `analysis_language`, default `en`, and `nickname`).
 
 ### `PATCH /api/v1/auth/me`
 
@@ -41,7 +28,8 @@ Update preferences. Request body (all fields optional):
 
 ```json
 {
-  "analysis_language": "ru"
+  "analysis_language": "ru",
+  "nickname": "alex"
 }
 ```
 
@@ -162,6 +150,29 @@ Response:
 }
 ```
 
+### `POST /api/v1/analytics/events`
+
+Logs lightweight analytics events for the currently authenticated user.
+
+Request:
+
+```json
+{
+  "event_type": "signup_google | login_google | topic_generated | essay_evaluated",
+  "meta": {
+    "any": "lightweight, no essay text"
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "ok": "true"
+}
+```
+
 ## Error Contract
 
 All error responses should follow a predictable format:
@@ -177,6 +188,7 @@ All error responses should follow a predictable format:
 
 ## Auth Rules
 
-- `register` and `login` are public;
+- `register` and `login` are disabled (email/password auth не поддерживается);
+- Google OAuth endpoints are available when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are configured;
 - `me`, `prompts/manual`, `essays`, and `analytics` require auth;
 - `prompts/generate` may be public or protected, but protected is preferred for consistency.

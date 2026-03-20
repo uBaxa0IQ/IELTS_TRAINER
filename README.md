@@ -12,7 +12,7 @@ Full-stack training app for `IELTS Writing Task 2`.
 
 ## Features
 
-- email/password authentication;
+- Google OAuth authentication (nickname shown in the UI);
 - generated topics and manual topic input;
 - minimalist writing interface;
 - word count;

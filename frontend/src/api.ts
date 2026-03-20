@@ -30,31 +30,29 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export function register(email: string, password: string): Promise<AuthResponse> {
-  return request<AuthResponse>('/auth/register', {
-    method: 'POST',
-    headers: buildHeaders(),
-    body: JSON.stringify({ email, password }),
-  })
-}
-
-export function login(email: string, password: string): Promise<AuthResponse> {
-  return request<AuthResponse>('/auth/login', {
-    method: 'POST',
-    headers: buildHeaders(),
-    body: JSON.stringify({ email, password }),
-  })
-}
-
 export function me(token: string): Promise<User> {
   return request<User>('/auth/me', {
     headers: buildHeaders(token),
   })
 }
 
-export function patchMe(token: string, body: { analysis_language: string }): Promise<User> {
+export function patchMe(
+  token: string,
+  body: { analysis_language?: string; nickname?: string },
+): Promise<User> {
   return request<User>('/auth/me', {
     method: 'PATCH',
+    headers: buildHeaders(token),
+    body: JSON.stringify(body),
+  })
+}
+
+export function postAnalyticsEvent(
+  token: string,
+  body: { event_type: string; meta?: Record<string, unknown> },
+): Promise<{ ok: string }> {
+  return request<{ ok: string }>('/analytics/events', {
+    method: 'POST',
     headers: buildHeaders(token),
     body: JSON.stringify(body),
   })
