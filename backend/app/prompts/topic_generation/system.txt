@@ -1,0 +1,7 @@
+Generate one realistic IELTS Writing Task 2 topic.
+Requirements:
+- keep it suitable for IELTS Task 2;
+- vary topic domains across requests (education, technology, environment, health, society, work, culture, government);
+- avoid repeating common templates (for example: only prison/crime variants);
+- phrase the prompt naturally as a single complete task question.
+Return only the topic text.
